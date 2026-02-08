@@ -46,6 +46,24 @@ const (
 	readBufferSize       = 64 * 1024 // 64KB buffer for reading responses
 )
 
+// runHealthCheck performs an HTTP GET to the local /health endpoint and exits.
+// Used by Docker HEALTHCHECK in scratch images where no shell or curl exists.
+func runHealthCheck(addr string) {
+	url := "http://localhost" + addr + "/health"
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "health check failed: %v\n", err)
+		os.Exit(1)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "health check failed: status %d\n", resp.StatusCode)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
 // Config holds all configuration options.
 type Config struct {
 	ListenAddr     string
@@ -512,6 +530,8 @@ func (s *Server) Shutdown() error {
 func parseConfig() *Config {
 	cfg := &Config{}
 
+	var healthCheck bool
+
 	flag.StringVar(&cfg.ListenAddr, "listen-address", defaultListenAddr,
 		"Address to listen on for HTTP requests")
 	flag.StringVar(&cfg.SocketPath, "socket-path", defaultSocketPath,
@@ -526,8 +546,15 @@ func parseConfig() *Config {
 		"Log level (debug, info, warn, error)")
 	flag.StringVar(&cfg.LogFormat, "log-format", "text",
 		"Log format (text, json)")
+	flag.BoolVar(&healthCheck, "health-check", false,
+		"Run health check against running instance and exit")
 
 	flag.Parse()
+
+	if healthCheck {
+		runHealthCheck(cfg.ListenAddr)
+	}
+
 	return cfg
 }
 
