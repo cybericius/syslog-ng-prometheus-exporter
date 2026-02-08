@@ -120,6 +120,7 @@ spec:
 | `--cache-ttl` | `10s` | Cache TTL for metrics |
 | `--log-level` | `info` | Log level (debug, info, warn, error) |
 | `--log-format` | `text` | Log format (text, json) |
+| `--health-check` | `false` | Run health check against running instance and exit |
 
 ### Environment Variables
 
