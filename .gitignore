@@ -1,2 +1,3 @@
 /.build/
+/syslog-ng-prometheus-exporter
 /coverage.out

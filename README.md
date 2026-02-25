@@ -250,4 +250,4 @@ WantedBy=multi-user.target
 
 ## License
 
-MIT License
+Source-Available License - free to use with syslog-ng OSE only. Use with syslog-ng PE or commercial derivatives requires written permission from the copyright holder. See [LICENSE](LICENSE) for details.
