@@ -2,6 +2,7 @@
 
 # Variables
 BINARY := syslog-ng-prometheus-exporter
+BUILD_DIR := .build
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)
@@ -11,16 +12,19 @@ GOFLAGS := -trimpath
 all: lint test build
 
 build: ## Build binary
-	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY) .
+	@mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) .
 
 build-linux: ## Build for Linux (amd64)
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY)-linux-amd64 .
+	@mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY)-linux-amd64 .
 
 build-all: ## Build for all platforms
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY)-linux-amd64 .
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY)-linux-arm64 .
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY)-darwin-amd64 .
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY)-darwin-arm64 .
+	@mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY)-linux-amd64 .
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY)-linux-arm64 .
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY)-darwin-amd64 .
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY)-darwin-arm64 .
 
 test: ## Run tests
 	go test -v -race -coverprofile=coverage.out ./...
@@ -40,7 +44,7 @@ fmt: ## Format code
 	goimports -w .
 
 clean: ## Clean build artifacts
-	rm -f $(BINARY) $(BINARY)-* coverage.out
+	rm -rf $(BUILD_DIR) coverage.out
 
 docker: ## Build Docker image
 	docker build -t syslog-ng-prometheus-exporter:$(VERSION) -t syslog-ng-prometheus-exporter:latest .
@@ -50,10 +54,10 @@ docker-push: docker ## Push Docker image
 	docker push syslog-ng-prometheus-exporter:latest
 
 run: build ## Run locally
-	./$(BINARY) --socket-path=/var/lib/syslog-ng/syslog-ng.ctl --log-level=debug
+	./$(BUILD_DIR)/$(BINARY) --socket-path=/var/lib/syslog-ng/syslog-ng.ctl --log-level=debug
 
 install: build ## Install to /usr/local/bin
-	install -m 755 $(BINARY) /usr/local/bin/
+	install -m 755 $(BUILD_DIR)/$(BINARY) /usr/local/bin/
 
 deps: ## Download dependencies
 	go mod download
