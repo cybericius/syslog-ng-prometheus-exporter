@@ -33,7 +33,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 )
 
 const (
@@ -166,6 +166,9 @@ type Collector struct {
 	// Atomic cache for lock-free reads
 	cache atomic.Pointer[cachedMetrics]
 
+	// Serializes scrapes so only one runs at a time (thundering herd prevention)
+	scrapeMu sync.Mutex
+
 	// Command to send
 	command []byte
 }
@@ -183,26 +186,6 @@ func NewCollector(cfg *Config, metrics *exporterMetrics, logger *slog.Logger) *C
 		logger:  logger,
 		command: []byte(command),
 	}
-}
-
-// connect establishes a connection to the syslog-ng control socket.
-func (c *Collector) connect() error {
-	c.connMu.Lock()
-	defer c.connMu.Unlock()
-
-	if c.conn != nil {
-		c.conn.Close()
-		c.conn = nil
-	}
-
-	conn, err := net.DialTimeout("unix", c.config.SocketPath, c.config.ScrapeTimeout)
-	if err != nil {
-		return fmt.Errorf("failed to connect to socket %s: %w", c.config.SocketPath, err)
-	}
-
-	c.conn = conn
-	c.logger.Debug("connected to syslog-ng control socket", "path", c.config.SocketPath)
-	return nil
 }
 
 // disconnect closes the connection.
@@ -309,10 +292,22 @@ func (c *Collector) scrape(ctx context.Context) error {
 }
 
 // getMetrics returns cached metrics if valid, otherwise scrapes fresh.
+// Uses double-check locking to prevent thundering herd on cache expiry.
 func (c *Collector) getMetrics(ctx context.Context) ([]byte, error) {
 	cached := c.cache.Load()
 
-	// Check if cache is valid
+	// Fast path: cache is valid
+	if cached != nil && time.Since(cached.timestamp) < c.config.CacheTTL {
+		c.metrics.cacheHits.Inc()
+		return cached.data, nil
+	}
+
+	// Serialize scrapes so only one goroutine fetches at a time
+	c.scrapeMu.Lock()
+	defer c.scrapeMu.Unlock()
+
+	// Re-check cache after acquiring lock (another goroutine may have refreshed it)
+	cached = c.cache.Load()
 	if cached != nil && time.Since(cached.timestamp) < c.config.CacheTTL {
 		c.metrics.cacheHits.Inc()
 		return cached.data, nil
@@ -390,40 +385,15 @@ func (s *Server) metricsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	enc := expfmt.NewEncoder(w, expfmt.NewFormat(expfmt.TypeTextPlain))
 	for _, mf := range gathering {
 		// Only include our exporter metrics
 		if strings.HasPrefix(mf.GetName(), "syslogng_exporter_") {
-			for _, m := range mf.GetMetric() {
-				writeMetric(w, mf.GetName(), mf.GetType().String(), m)
+			if err := enc.Encode(mf); err != nil {
+				s.logger.Error("failed to encode metric family", "name", mf.GetName(), "error", err)
 			}
 		}
 	}
-}
-
-// writeMetric writes a single metric in Prometheus text format.
-func writeMetric(w http.ResponseWriter, name, metricType string, m *dto.Metric) {
-	// Simplified metric writing - in production, use expfmt package
-	var value float64
-	var labels string
-
-	if m.GetGauge() != nil {
-		value = m.GetGauge().GetValue()
-	} else if m.GetCounter() != nil {
-		value = m.GetCounter().GetValue()
-	} else if m.GetHistogram() != nil {
-		// Skip histogram for simplicity - promhttp handles this
-		return
-	}
-
-	if len(m.GetLabel()) > 0 {
-		labelPairs := make([]string, 0, len(m.GetLabel()))
-		for _, l := range m.GetLabel() {
-			labelPairs = append(labelPairs, fmt.Sprintf(`%s="%s"`, l.GetName(), l.GetValue()))
-		}
-		labels = "{" + strings.Join(labelPairs, ",") + "}"
-	}
-
-	fmt.Fprintf(w, "%s%s %g\n", name, labels, value)
 }
 
 // healthHandler serves health check endpoints.
@@ -436,6 +406,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 // readyHandler serves readiness check.
 func (s *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 	if !s.ready.Load() {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte("NOT READY\n"))
 		return
@@ -447,6 +418,10 @@ func (s *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 
 // rootHandler serves the landing page.
 func (s *Server) rootHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(`<!DOCTYPE html>
 <html>
@@ -481,13 +456,8 @@ func (s *Server) Start(ctx context.Context) error {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Initial connection test
+	// Initial scrape to populate cache and verify connectivity
 	s.logger.Info("testing syslog-ng connection", "socket", s.config.SocketPath)
-	if err := s.collector.connect(); err != nil {
-		return fmt.Errorf("initial connection test failed: %w", err)
-	}
-
-	// Initial scrape to populate cache
 	if err := s.collector.scrape(ctx); err != nil {
 		s.logger.Warn("initial scrape failed, continuing anyway", "error", err)
 	}

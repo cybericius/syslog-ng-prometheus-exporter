@@ -291,7 +291,7 @@ func TestParseConfig(t *testing.T) {
 }
 
 func BenchmarkCollector_GetMetrics_CacheHit(b *testing.B) {
-	socketPath, cleanup := mockSyslogNG(nil, "syslogng_test 1\n")
+	socketPath, cleanup := mockSyslogNG(b, "syslogng_test 1\n")
 	defer cleanup()
 
 	cfg := &Config{
@@ -320,7 +320,7 @@ func BenchmarkCollector_GetMetrics_CacheHit(b *testing.B) {
 }
 
 func BenchmarkCollector_GetMetrics_CacheMiss(b *testing.B) {
-	socketPath, cleanup := mockSyslogNG(nil, "syslogng_test 1\n")
+	socketPath, cleanup := mockSyslogNG(b, "syslogng_test 1\n")
 	defer cleanup()
 
 	cfg := &Config{
