@@ -4,20 +4,25 @@ Copyright (c) 2024-2026 Akos Zalavary. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person or organization
 obtaining a copy of this software and associated documentation files (the
-"Software"), to use, copy, modify, merge, publish, and distribute the
-Software, subject to the following conditions:
+"Software"), to use the Software for personal or internal purposes only,
+subject to the following conditions:
 
 1. The Software may only be used in conjunction with syslog-ng Open Source
    Edition (OSE). Use of the Software with any other product, including but
    not limited to syslog-ng Premium Edition (PE) or any commercial derivative
    of syslog-ng, requires prior written permission from the copyright holder.
 
-2. The above copyright notice and this permission notice shall be included in
-   all copies or substantial portions of the Software.
+2. Modification, forking, or creation of derivative works is permitted only
+   for personal or internal use. Public distribution or redistribution of
+   modified versions, forks, or derivative works — whether free or paid —
+   requires prior written permission from the copyright holder.
 
-3. Sublicensing, selling, or commercially redistributing the Software as a
-   standalone product or as part of a paid offering is prohibited without prior
-   written permission from the copyright holder.
+3. Sublicensing, selling, or commercially redistributing the Software or any
+   derivative work, as a standalone product or as part of a paid offering, is
+   prohibited without prior written permission from the copyright holder.
+
+4. The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
 
 For licensing inquiries or permission requests, contact:
 Akos Zalavary <https://github.com/cybericius>
