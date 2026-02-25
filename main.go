@@ -497,6 +497,12 @@ func (s *Server) Shutdown() error {
 	return nil
 }
 
+// flagToEnv converts a flag name to its environment variable equivalent.
+// e.g. "listen-address" -> "SYSLOGNG_EXPORTER_LISTEN_ADDRESS"
+func flagToEnv(flagName string) string {
+	return "SYSLOGNG_EXPORTER_" + strings.ToUpper(strings.ReplaceAll(flagName, "-", "_"))
+}
+
 func parseConfig() *Config {
 	cfg := &Config{}
 
@@ -520,6 +526,20 @@ func parseConfig() *Config {
 		"Run health check against running instance and exit")
 
 	flag.Parse()
+
+	// Apply environment variables for flags not explicitly set on the command line.
+	// CLI flags take precedence over environment variables.
+	explicitly := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { explicitly[f.Name] = true })
+
+	flag.VisitAll(func(f *flag.Flag) {
+		if explicitly[f.Name] {
+			return
+		}
+		if v, ok := os.LookupEnv(flagToEnv(f.Name)); ok {
+			f.Value.Set(v)
+		}
+	})
 
 	if healthCheck {
 		runHealthCheck(cfg.ListenAddr)

@@ -290,6 +290,48 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+func TestParseConfig_EnvVars(t *testing.T) {
+	// Set env vars
+	t.Setenv("SYSLOGNG_EXPORTER_LISTEN_ADDRESS", ":7777")
+	t.Setenv("SYSLOGNG_EXPORTER_SOCKET_PATH", "/env/socket.ctl")
+	t.Setenv("SYSLOGNG_EXPORTER_CACHE_TTL", "45s")
+	t.Setenv("SYSLOGNG_EXPORTER_LOG_LEVEL", "debug")
+
+	// No CLI flags — env vars should apply
+	os.Args = []string{"test"}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+
+	cfg := parseConfig()
+
+	if cfg.ListenAddr != ":7777" {
+		t.Errorf("expected listen address :7777, got %s", cfg.ListenAddr)
+	}
+	if cfg.SocketPath != "/env/socket.ctl" {
+		t.Errorf("expected socket path /env/socket.ctl, got %s", cfg.SocketPath)
+	}
+	if cfg.CacheTTL != 45*time.Second {
+		t.Errorf("expected cache TTL 45s, got %v", cfg.CacheTTL)
+	}
+	if cfg.LogLevel != "debug" {
+		t.Errorf("expected log level debug, got %s", cfg.LogLevel)
+	}
+}
+
+func TestParseConfig_FlagOverridesEnv(t *testing.T) {
+	// Set env var
+	t.Setenv("SYSLOGNG_EXPORTER_LISTEN_ADDRESS", ":7777")
+
+	// CLI flag should take precedence
+	os.Args = []string{"test", "--listen-address=:9999"}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+
+	cfg := parseConfig()
+
+	if cfg.ListenAddr != ":9999" {
+		t.Errorf("expected CLI flag to override env var, got %s", cfg.ListenAddr)
+	}
+}
+
 func BenchmarkCollector_GetMetrics_CacheHit(b *testing.B) {
 	socketPath, cleanup := mockSyslogNG(b, "syslogng_test 1\n")
 	defer cleanup()
