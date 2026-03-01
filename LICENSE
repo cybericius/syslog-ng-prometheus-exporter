@@ -7,10 +7,12 @@ obtaining a copy of this software and associated documentation files (the
 "Software"), to use the Software for personal or internal purposes only,
 subject to the following conditions:
 
-1. The Software may only be used in conjunction with syslog-ng Open Source
-   Edition (OSE). Use of the Software with any other product, including but
-   not limited to syslog-ng Premium Edition (PE) or any commercial derivative
-   of syslog-ng, requires prior written permission from the copyright holder.
+1. The Software may only be used in conjunction with the upstream syslog-ng
+   Open Source Edition (OSE) as published at https://github.com/syslog-ng/syslog-ng.
+   Use of the Software with any other product — including but not limited to
+   any fork, rebrand, commercial edition, or derivative of syslog-ng
+   maintained by a third party — requires prior written permission from the
+   copyright holder.
 
 2. Modification, forking, or creation of derivative works is permitted only
    for personal or internal use. Public distribution or redistribution of
@@ -21,7 +23,12 @@ subject to the following conditions:
    derivative work, as a standalone product or as part of a paid offering, is
    prohibited without prior written permission from the copyright holder.
 
-4. The above copyright notice and this permission notice shall be included in
+4. Offering the functionality of the Software, or any derivative work, to
+   third parties as a managed service, hosted service, or as part of a
+   platform (SaaS, PaaS, or similar) is prohibited without prior written
+   permission from the copyright holder.
+
+5. The above copyright notice and this permission notice shall be included in
    all copies or substantial portions of the Software.
 
 For licensing inquiries or permission requests, contact:
